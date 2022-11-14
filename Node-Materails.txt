@@ -1,0 +1,308 @@
+Topics:
+1.node js fundamentals
+2.Typescript 
+3.Nest js
+  REST Webservices
+  Database interaction
+  Microservices
+
+Nest  = {nodejs,ts/js,microservices(moleculer)}
+....................................................................................
+				Lab
+
+1.Node.js
+2.npm
+3.vs code
+.....................................................................................
+			      Node.js
+.....................................................................................
+What is node.js?
+    Node.js is a "platform" to run js code outside web browser.
+
+ Platform means collection of tools,libs/apis,runtime in order to build end to end apps.
+
+Why Node.js?
+  Before Node.js, There was no arch for building application particullar network based apps using nonblocking /async programming model.
+
+Blocking and Non Blocking?
+
+
+Drawbacks of Request Per Thread Model.
+   1000 req = 1000 thread
+   1 million req = 1 million threads
+
+if webserver starts receiving more and more load, they cant handle request.
+The problem was called as "C10K" Problem
+
+c10k Problem:
+The C10k problem is the problem of optimizing network sockets to handle a large number of clients at the same time. The name C10k is a numeronym for concurrently handling ten thousand connections.
+ 
+ if a webserver handles 10 thousand connections(threads) at the same time , it is good webserver".
+....................................................................................
+		How to implement non blocking and blocking via code
+
+Basic requirement to write nonblocking apps
+1. os should support non blocking infrastructure at kernal level- like epoll,kqueue,iocp...
+2.The language or platform like node should provide apis to connect with os nonblocking system calls.
+3.Threads and its management
+   Threads are reponsible for making io calls...
+
+4.You have to process the events emitted by kernal
+   Thread process events 
+   results we need to capture- handels -  functions/listners/callbacks
+
+
+Find Apis
+Map those apis with listeners - callbacks
+....................................................................................
+
+Styles of writting non blocking code
+
+1.callback style/pattern
+2.Promise style/Pattern
+3.Promise with async and await Pattern
+4.Reactive Programming
+
+Non blocking apis:
+
+1.timers
+   used to delay some actictivies without blocking current thread
+   used to perform some cpu intensive taks
+2.io 
+  used to read/write from and to sockets,disks,any io channels
+
+most of the non blocking apis are provided by node js
+//first non blocking using timer 
+
+function blockMe(message) {
+    console.log(message)
+}
+function delay(callback, timer) {
+    setTimeout(callback, timer, 'Hello!')
+}
+//begin 
+blockMe('start')
+delay(function (response) {
+    console.log(response)
+}, 5000)
+blockMe('end')
+
+callback function:
+ it is listener funciton passed from the caller , to be registered in queue to be exeucted later due to some events.
+...................................................................................
+			 async composition
+...................................................................................
+
+The output of one callback will be input to another callback, and so on...
+async compostion - callback chaning.
+
+//async compostion - callback chaining
+/**
+ * getUser ---returns user after some dealy
+ * based on user user 
+ * login method -  takes user as input if user found - login validation
+ * if login success
+ * dashboard - shows who is that user?
+ */
+const getUser = (success, failure) => {
+    //biz logic
+    let user = {
+        id: 1,
+        name: 'admin'
+    }
+    //user = null
+    if (user) {
+        setTimeout(success, 1000, user)
+    } else {
+        setTimeout(failure, 1000, { message: 'User not found' })
+    }
+}
+const login = (user, success, failure) => {
+    if (user.name === 'admin') {
+        setTimeout(success, 1000, 'login success')
+    } else {
+        setTimeout(failure, 1000, 'login failed')
+    }
+}
+const showDashboard = (status, success, failure) => {
+    if (status === 'login success') {
+        setTimeout(success, 1000, 'You are admin')
+    } else {
+        setTimeout(failure, 1000, 'You are not authenticated')
+    }
+}
+
+//main function
+function main() {
+    //callback as parameter
+    getUser((user) => {
+        console.log(user)
+        //callback chaining
+        login(user, (status) => {
+            console.log(status)
+            showDashboard(status, (page) => {
+                console.log(page)
+            }, (err) => {
+                console.log(err)
+            })
+        }, (err) => {
+            console.log(err)
+        })
+    }, err => {
+        console.log(err)
+    })
+}
+main()
+....................................................................................
+				Callback Hell
+....................................................................................
+//main function
+function main() {
+    //callback as parameter
+    getUser((user) => {
+        console.log(user)
+        //callback chaining
+        login(user, (status) => {
+            console.log(status)
+            showDashboard(status, (page) => {
+                console.log(page)
+            }, (err) => {
+                console.log(err)
+            })
+        }, (err) => {
+            console.log(err)
+        })
+    }, err => {
+        console.log(err)
+    })
+}
+main()
+
+Questions:
+
+1.Whether this code is able to understand quickly
+2.Whether this code is able to debug
+3.Whehter this code is scalable?
+4.whether this code is maintaiable?
+
+No
+ "Callback Hell"
+
+Callback Hell:
+
+ -It is not bug or error in code
+ -It is way of writing callback based program
+ -Callback based non blocking programming hard to understand,maintain,debug,scale Which   called as "Callback Hell".
+
+How to write better async/non blocking code without callbacks?
+
+The design pattern proposed to handle complixity of callbacks - "Promise"
+
+Promise is basically a design pattern which abstracts away the complex callback based programming.
+
+In the begining many people provide promise implmenations, 2012, ECMA Committe introduced "Promise Implementation" as part of language - ES 6 
+
+Promise design pattern  as  "Promise" Object  in javascript.
+.....................................................................................
+			  Promise Implementation
+.....................................................................................
+
+Features of Promise Object:
+1.Promise by deafult is Async. Which implements timer api with 0 ms .
+2.Promise can be used with any async callback based  implementations.
+
+
+Objective:
+
+ To remove callbacks in async/non blocking code. write cleaner async programming.
+ To remove complex callback chaining code.
+
+
+Difference between callbacks and promises:
+
+Essentially, a promise is a returned object to which you attach callbacks, instead of passing callbacks into a function.
+
+....................................................................................
+
+		Promise Implemenation: Object  creations
+...................................................................................
+
+1. Create Promise Object from Promise contructor
+      new Promise()
+2. Create Promise object from factory apis 
+      Promise.resolve() / Promise.reject()
+
+Promise object methods:
+
+1.then - success
+2.catch - errors
+3.finally - clean up
+
+factory api to create Promise object
+4.resolve
+5.reject
+.......................................
+6.all
+7.race
+
+1.Promise factory api
+   -success - resolve
+   -failure - reject
+
+    "Promises are by default async -  Promise behind uses timer with 0ms"
+
+
+function blockMe(message) {
+    console.log(message)
+}
+
+function delay() {
+    return Promise.resolve('success') // return new Promise Object 
+}
+function main() {
+    blockMe('start')
+    delay().then(result => console.log(result))
+    blockMe('end')
+}
+main()
+.....................................................................................
+
+function blockMe(message) {
+    console.log(message)
+}
+
+function delay() {
+    let user = {
+        name: 'admin'
+    }
+    if (user.name == 'admin') {
+        return Promise.resolve('login success')
+    } else {
+        return Promise.reject('login failed')
+    }
+}
+function main() {
+    blockMe('start')
+    delay()
+        .then(result => console.log(result))
+        .catch(err => console.log(err))
+    blockMe('end')
+}
+main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
