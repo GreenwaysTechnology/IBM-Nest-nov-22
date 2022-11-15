@@ -289,20 +289,696 @@ function main() {
     blockMe('end')
 }
 main()
+.....................................................................................
+
+//promise constructors
+
+//i want to return the data after 1000ms
+function delay() {
+    //if you want to convert any callback based apis into promise based 
+    return new Promise((resolve, reject) => {
+        setTimeout(resolve, 1000, 'Hello')
+    })
+}
+
+function main() {
+    delay()
+        .then(response => console.log(response))
+        .catch(err => console.log(err))
+}
+main()
+
+...................
+sovling the problem of callback hell.
+const getUser = () => {
+    console.log("getUser is called")
+    return new Promise((resolve, reject) => {
+        //biz logic
+        let user = {
+            id: 1,
+            name: 'admin'
+        }
+        //user = null
+        if (user) {
+            setTimeout(resolve, 1000, user)
+        } else {
+            setTimeout(reject, 1000, { message: 'User not found' })
+        }
+
+    })
+}
+const login = user => {
+    console.log("login is called")
+
+    return new Promise((resolve, reject) => {
+        if (user.name === 'admin') {
+            setTimeout(resolve, 1000, 'login success')
+        } else {
+            setTimeout(reject, 1000, 'login failed')
+        }
+    })
+}
+const showDashboard = status => {
+    console.log("showDashboard is called")
+
+    return new Promise((resolve, reject) => {
+        if (status === 'login success') {
+            setTimeout(resolve, 1000, 'You are admin')
+        } else {
+            setTimeout(reject, 1000, 'You are not authenticated')
+        }
+    })
+}
+
+//main function
+function main() {
+    //callback as parameter
+    // getUser((user) => {
+    //     console.log(user)
+    //     //callback chaining
+    //     login(user, (status) => {
+    //         console.log(status)
+
+    //         showDashboard(status, (page) => {
+    //             console.log(page)
+    //         }, (err) => {
+    //             console.log(err)
+    //         })
+    //     }, (err) => {
+    //         console.log(err)
+    //     })
+    // }, err => {
+    //     console.log(err)
+    // })
+
+    getUser()
+        .then(user => {
+            return login(user)
+        })
+        .then(status => {
+            return showDashboard(status)
+        })
+        .then(page => {
+            console.log(page)
+        })
+        .catch(err => console.log(err))
+}
+main()
+..............................................................................
+
+Promise Hell:
+  if promises are more, chaining itself not readable, how to write clean async composition code in sync way - async await keywords..
+
+async functions are functions which returns promise by default.
+
+//async functions 
+
+async function getValue() {
+    return 10  // Promise.resolve(10)
+}
+
+function main() {
+    let value = getValue()
+    //console.log(value)
+    value.then(res=>console.log(res))
+}
+main()
+...
+async..await
+//without then how to read value from the promise
+
+//async functions 
+
+async function getValue() {
+    return 10  // Promise.resolve(10)
+}
+
+async function main() {
+    let value = await getValue()
+    console.log(value)
+}
+main()
+................................................................................
+
+Promise hell and async and await keyword
+.........................................
+const getUser = () => {
+    console.log("getUser is called")
+    return new Promise((resolve, reject) => {
+        //biz logic
+        let user = {
+            id: 1,
+            name: 'admin'
+        }
+        //user = null
+        if (user) {
+            setTimeout(resolve, 1000, user)
+        } else {
+            setTimeout(reject, 1000, { message: 'User not found' })
+        }
+
+    })
+}
+const login = user => {
+    console.log("login is called")
+
+    return new Promise((resolve, reject) => {
+        if (user.name === 'admin') {
+            setTimeout(resolve, 1000, 'login success')
+        } else {
+            setTimeout(reject, 1000, 'login failed')
+        }
+    })
+}
+const showDashboard = status => {
+    console.log("showDashboard is called")
+
+    return new Promise((resolve, reject) => {
+        if (status === 'login success') {
+            setTimeout(resolve, 1000, 'You are admin')
+        } else {
+            setTimeout(reject, 1000, 'You are not authenticated')
+        }
+    })
+}
+
+//main function
+async function main() {
+    // getUser()
+    //     .then(user => {
+    //         return login(user)
+    //     })
+    //     .then(status => {
+    //         return showDashboard(status)
+    //     })
+    //     .then(page => {
+    //         console.log(page)
+    //     })
+    //     .catch(err => console.log(err))
+
+    try {
+        const user = await getUser()
+        const status = await login(user)
+        const page = await showDashboard(status)
+        console.log(page)
+    }
+    catch (err) {
+      console.log(err)
+    }
+}
+main()
+.....................................................................................
+				  
+
+Module Design patterns:
+.......................
+In java Modularity , is presented via "Packages"
+
+Package organize the code  logically.
+
+Customer.java
+
+package com.ibm.cms
+
+public class Customer{}
+
+Java organizes code folders and files Physically.
+
+d:/javaapps/src/
+    com/ibm/cms/Customer.java
+
+What about javascript Modularity?
+
+ Javascript is file based modularity physically
+ but logically there is no such modularity at language level.
+
+collection of variable declarations and function.
+
+Once js started growing in large scale, dev struck to organize code.
+
+2000, Smart developers started thinking about how to modualrize js code.
+ 
+
+Module design patterns came.
+
+1.Namespace design pattern : 2000 : jquery
+2.AMD -Async Module Defintion : dojo
+---------------------------------------------------------
+3.CJS - Common JS =  namespace + amd:2005 on wards
+4.ES 6 Module design pattern:2012-2015  = amd + cjs
+------------------------------------------------------------
+5.System :2007 = AMD = CJS + ES 6
+6.UMD :2008 = NAMESPACE + AMD + CJS = ES 6
+
+
+....................................................................................
+				Commonjs-CJS
+.....................................................................................
+
+How to share code? How to import code?
+
+ Code:
+  Could be variables,functions,classes.
+  Variables can have any literal string,numbers,boolean,objects,functions...
+
+src
+  |
+  subfolders
+|
+index.js
+
+Sharing code :
+
+Keywords
+exports
+module.exports
+
+Imporing code:
+require('fileName')
+require('folderName/fileName')
+
+exports:
+ Used to share more code from the single file.
+ exports packs the entire code into one single js object and returns that object
+
+
+//code sharing  :  exports ,module.exports-common js keywords
+
+//exports packs the entire code into object and share that object 
+
+exports.firstName = 'Subramanian'
+exports.lastName = 'Murugan'
+exports.age = 22
+exports.address = {
+    city: 'Coimbatore'
+}
+exports.status = true
+exports.calculate = function () {
+    return 10
+}
+exports.skills = ['js', 'java']
+
+index.js
+const info = require('./mylib')
+console.log(info)
+console.log(info.firstName,info.lastName)
+..................................................................................
+
+module.exports
+  only one thing at a time
+  unlike exports module.exports does not pack code into object and return
+  in a single file , you must have only one module.exports
+  it can export any thing - function,object,variable,class,array...
+
+...
+service
+src/services/user.service.js
+
+class UserService {
+    constructor() { }
+    //apis 
+    findAll() {
+        return new Promise((resolve, reject) => {
+            setTimeout(resolve, 1000, 'users')
+        })
+    }
+    save() {
+        return 'user saved'
+    }
+    remove() {
+        return 'user removed'
+    }
+    update() {
+        return 'user updated'
+    }
+}
+module.exports = UserService //share the class 
+//module.exports = new UserService() //share the object , so that this step can be avoided in antoher place
+
+src/controllers/user.controller.js
+
+class UserController {
+    userService
+    //dependency injection
+    constructor(userService) {
+        this.userService = userService
+    }
+    //apis 
+    findAll() {
+        return this.userService.findAll()
+    }
+    save() {
+        return this.userService.save()
+    }
+    remove() {
+        return this.userService.remove()
+    }
+    update() {
+        return this.userService.update()
+    }
+}
+module.exports = UserController;
+
+src/main.js
+const UserController = require("./controllers/user.controller")
+const UserService = require("./services/user.service")
+
+async function main() {
+    const userCtrl = new UserController(new UserService())
+    try {
+        console.log(await userCtrl.findAll())
+    }
+    catch (err) {
+        console.log(err);
+    }
+}
+main()
+...................................................................................
+				es 6 module
+
+es 6 modules are not supported by node and browser by default.
+if yo want to run es 6 modules,
+ =>webpack like build tools
+ =>configuration in the package.json file...
+
+es 6 module keywords
+
+1.export  === exports
+  multiple things
+2.export default === module.exports
+   single export
+3.import === require()
+
+src/services/todo.service.js
+
+
+// export default class TodoService {
+//     constructor() { }
+//     findAll(){
+//         return 'todos'
+//     }
+// }
+
+class TodoService {
+    constructor() { }
+    findAll() {
+        return 'todos'
+    }
+}
+export default TodoService;
+
+
+export const firstName = 'Subramanian'
+export const lastName = 'Murugan'
+export const age = 22
+export const status = true
+export const address = {
+    city: 'Coimbatore'
+}
+export const skills = ['js', 'react']
+export const getvalue = () => 1000
+................................................................................
+
+import { firstName, lastName, skills, status } from "./util.js";
+import TodoService from "./services/todo.service.js";
+
+function main() {
+    console.log(firstName, lastName, status, skills)
+    let todoservice = new TodoService()
+    console.log(todoservice.findAll())
+}
+main()
+
+.................................................................................
+			  Non blocking web apps
+..................................................................................
+
+Types of modules:
+
+1.custom modules
+   Modules are built by developers -todos,users,products
+2.built in modules
+   modules are provided by node.js 
+3.third party modules
+   modules are provided by third party like react,angular,express,nest.....
+
+Built in modules
+
+http module:
+  non blocking web apps and webservers using js...
+
+
+Node.js is reference implementation of "c10K" Problem.
+Node.js has removed the concept of "Request Per Thread Model"
+Node.js Handls more concurrent requests using "single Event Loop thread".
+
+Node.js Provides a module called "http".
+
+Node Js Provides HTTP Server,HttpApplication , is nonblocking.
+
+Unlike traditional webservers,node uses single event thread to handle concurrent requests.
+
+Http Module:
+The HTTP interfaces in Node.js are designed to support many features of the protocol which have been traditionally difficult to use. In particular, large, possibly chunk-encoded, messages. The interface is careful to never buffer entire requests or responses, so the user is able to stream data.
+
+HTTP modules objects:
+
+1.Server
+  Server object is used to implement http servers/web containers
+2.ServerResponse
+  Object is used to send data 
+3.ClientRequest
+   Request object is used to handle http client requests
+4.IncommingMessage
+   Represents message payloads.
+
+
+In Node Web:
+
+1.You create web containers
+2.You create web app
+3.You deploy it.
+
+//const http = require('http')
+import http from 'http'
+
+//create server 
+const server = http.createServer((req, res) => {
+    //send response
+    res.end('Hello,Node,Web')
+})
+
+//start http server 
+server.listen(3000, () => {
+    console.log('HTTP Server is listening')
+})
+
+....
+data and web servers:
+
+src/service/todo.service.js
+
+class TodoService {
+    constructor() { }
+
+    findAll() {
+        return new Promise((resolve, reject) => {
+            const data = [{ id: 1, title: 'learn node', completed: true }, { id: 2, title: 'learn express', completed: false }]
+            setTimeout(resolve, 5000, data)
+        })
+    }
+}
+export default  TodoService;
+
+
+//const http = require('http')
+import http from 'http'
+import TodoService from './services/todo.service.js'
+
+const todoService = new TodoService()
+
+//create server 
+const server = http.createServer(async (req, res) => {
+    //send response
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    try {
+        const todos = JSON.stringify(await todoService.findAll())
+        res.end(todos)
+    }
+    catch (err) {
+        res.end(JSON.stringify({ err: err }))
+    }
+})
+
+//start http server 
+server.listen(3000, () => {
+    console.log('HTTP Server is listening')
+})
+....................................................................................
+			Building Real time REST WebServices
+
+Requirements:
+1.RESOURCES - USERS,CUSTOMERS
+   Building resource isloation is big changellange.
+
+2.URL Mapping ,HTTP Verb Mapping
+  For each resource we may have many urls and verbs
+
+  customers
+
+  GET /api/customers/list
+  GET /api/customers/:id
+  POST /api/customers/save
+   
+  products
+
+  GET /api/products/list
+  GET /api/products/:id
+  POST /api/products/save
+
+Having plain http module, it is very hard to build apps
+..................................................................................
+				Birth of Frameworks
+..................................................................................
+
+1.Express js
+2.Loopback js
+3.Nest.js
+4.Moleculer js
+5.fastify js
+etc...
+
+What is express.js
+  Express.js is the first web framework built for node js and built by node js core   team.
+  Express.js is wrapper around core http module.
+  Express is abstraction for creating Web Applications for node http core module.
+
+Express can be used to small to medium scale apps only.
+
+Types of apps we can build using express.js
+
+1.Dynamic web apps
+2.Rest apis
+
+How to write express apps?
+
+1.using vannila node project and install express framework
+2.using express generator - tool used to create express apps.
+
+express core concepts:
+ In express everything object
+
+express - function
+  used to create express objects
+
+1.Application 
+2.Request
+3.Response
+4.Router
+
+1.Application Object
+  =>It represents the whole express app
+  =>It is container object which contains other objects
+  =>It is created by calling express function
+  =>Per Application only one app instance
+
+Application Object
+  =>You can expose the global end points
+  =>You configure middlewares
+  =>you can render views
+  =>you can register template engines
+  =>You can start web container...		
+
+
+...
+src
+ |
+ services
+ controllers
+app.js
 
 
 
+export class CustomerService {
+    constructor() { }
+    list() {
+        return new Promise((resolve, reject) => {
+            const customers = [
+                { id: 1, name: 'subramanian' },
+                { id: 2, name: 'Murugan' },
+                { id: 3, name: 'Ram' }
+            ]
+            setTimeout(resolve,5000,customers)
+        })
+    }
+}
+import express from 'express'
+import { CustomerService } from '../services/customer.service.js'
+
+const customerRouter = express.Router()
+const customerService = new CustomerService();
+//endpoints
+customerRouter.get('/list', async (req, res) => {
+    try {
+        res.status(200).json(await customerService.list())
+    }
+    catch (err) {
+        res.status(500).json({ err: err })
+    }
+})
 
 
+export { customerRouter }
 
 
+export class ProductService {
+    constructor() { }
+    list() {
+        return new Promise((resolve, reject) => {
+            const products = [
+                { id: 1, name: 'phone', qty: 10, price: 1000 },
+                { id: 2, name: 'books', qty: 45, price: 100 },
+                { id: 3, name: 'computers', qty: 12, price: 10000 }
+            ]
+            setTimeout(resolve, 5000, products)
+        })
+    }
+}
+import express from 'express'
+import { ProductService } from '../services/products.service.js'
+
+const productRouter = express.Router()
+const productService = new ProductService();
+//endpoints
+productRouter.get('/list', async (req, res) => {
+    try {
+        res.status(200).json(await productService.list())
+    }
+    catch (err) {
+        res.status(500).json({ err: err })
+    }
+})
 
 
+export { productRouter }
+
+import express from "express";
+import { customerRouter } from "./controllers/customer.controller.js";
+import { productRouter } from './controllers/product.controller.js'
+
+//create application object 
+const app = express()
+
+//configure the controller, so that applicaiton object will route the request 
+app.use('/api/customers', customerRouter)
+app.use('/api/products', productRouter)
 
 
+//global endpoints
+app.get('/', (req, res) => {
+    res.end('Home Page')
+})
 
-
-
-
-
-
+app.listen(3000, () => {
+    console.log('Express Server is Up')
+})

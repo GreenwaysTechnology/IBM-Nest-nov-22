@@ -1,23 +1,23 @@
+//const http = require('http')
+import http from 'http'
+import TodoService from './services/todo.service.js'
 
-function blockMe(message) {
-    console.log(message)
-}
+const todoService = new TodoService()
 
-function delay() {
-    let user = {
-        name: 'admin'
+//create server 
+const server = http.createServer(async (req, res) => {
+    //send response
+    res.writeHead(200, { 'Content-Type': 'application/json' })
+    try {
+        const todos = JSON.stringify(await todoService.findAll())
+        res.end(todos)
     }
-    if (user.name == 'admin') {
-        return Promise.resolve('login success')
-    } else {
-        return Promise.reject('login failed')
+    catch (err) {
+        res.end(JSON.stringify({ err: err }))
     }
-}
-function main() {
-    blockMe('start')
-    delay()
-        .then(result => console.log(result))
-        .catch(err => console.log(err))
-    blockMe('end')
-}
-main()
+})
+
+//start http server 
+server.listen(3000, () => {
+    console.log('HTTP Server is listening')
+})
