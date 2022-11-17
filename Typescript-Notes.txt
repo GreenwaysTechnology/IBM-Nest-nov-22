@@ -264,7 +264,7 @@ E:\session\upgrad\ts-apps>  code .
 
 >node build/index.js
 .....................................................................................
-   	 Typescript language fundamentals
+   	              Typescript language fundamentals
 
 
 How to declare variables and how to use data types?
