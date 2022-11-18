@@ -101,7 +101,7 @@ How to create new Project?
 my-nest-app> code .
 
 Project Structure:
-  The has lot of files and folders.
+  It has lot of files and folders.
 
 readMe.md
   How to use this project
@@ -605,6 +605,629 @@ import { UserController } from './user.controller';
   controllers: [UserController]
 })
 export class UsersModule {}
+..................................................................................
+				Controllers
+..................................................................................
+
+Controllers are responsible for handling incoming requests and returning responses to the client.
+                                  -----------Controller
+				  |----------Controller
+				  |----------Controller
+ Client-------http--request-------|----------Controller
+				  |----------Controller
+
+Routing:
+  A controller purpose is to received spefic requests for the application, where routing mechanism controls which controller receives which requests.
+ A Controller can have more than one route, each route has been designed for different actions.
+
+Routing Syntax:
+
+ The controller starts with root route
+ @Controller("customers")   = /customers
+
+ Method level router
+ @Get() => /customers
+ @Get("list") => /customers/list
+
+
+Client Testing tool:
+
+1.postman
+
+
+import { Controller,Get } from '@nestjs/common';
+
+@Controller('users')
+export class UserController {
+
+    @Get()
+    public findAll():string {
+        return 'Users'
+    }
+    //
+    @Get("list")
+    public listAll():string {
+        return 'user list'
+    }
+}
+localhost:3000/users/list
+.....................................................................................
+			 Status Code,Headers,Responses
+...................................................................................
+
+Status Code :
+   By default Nest returns status code based on http operations
+ Get - 200
+ Post -201
+if you want to change the status, you can use @HttpCode decorator.
+
+import { Controller,Get, HttpCode } from '@nestjs/common';
+
+@Controller('users')
+export class UserController {
+
+    @Get()
+    @HttpCode(200)
+    public findAll():string {
+        return 'Users'
+    }
+    //
+    @Get("list")
+    public listAll():string {
+        return 'user list'
+    }
+}
+.....................................................................................					Headers
+
+Nests sends default headers automatically.
+x-Powered-By:express  -  the underlying web container of nest 
+content-type - the type of value we return
+ based on data type , the contenttype would be changed
+etc...
+
+What if i want to send headers?
+
+it can be custome header, or built in header.
+
+We have @Header decorator
+    @Get()
+    @HttpCode(200)
+    @Header("secret","abc#239a")
+    public findAll(): string {
+        return 'Users'
+    }
+.....................................................................................
+				Response types
+.....................................................................................
+
+Nest automatically parses the content based on the return type
+ Primitives -  string 
+  default would be 
+      content-type text/html; charset=utf-8
+
+  Object
+     if you send object, nest converts into json, adds header 
+   application/json
+
+How to return object?
+
+    @Get("user")
+    public findUser(): any {
+        return {
+            id: 1,
+            name: 'Subramanian'
+        }
+    }
+Here return type is any, we need to change the return type.
+
+users/user.type.ts
+
+export class User {
+    id: number
+    name: string
+}
+
+ @Get("user")
+ public findUser(): User {
+        return {
+            id: 1,
+            name: 'Subramanian'
+        }
+  }		
+
+How to return array of users?
+    @Get("list")
+    public listAll(): Array<User> {
+        return [
+            {
+                id: 1,
+                name: 'Subramanian'
+            },
+            {
+                id: 2,
+                name: 'Ram'
+            },
+            {
+                id: 3,
+                name: 'Arun'
+            }
+        ]
+    }
+.....................................................................................
+				
+Response conversion logic is now is nutural way ,Nest interally uses either express or fastify framework.
+
+By default nest uses express as web container, in future if you change from express to fastify, you dont need to change the code.
+
+Coding style:
+  Platform nutural code
+  Lib-Specific code - express
+
+
+Express way of returning code:
+  //express way of returning response
+    @Get("express")
+    public findAllUsingExpress(@Res() response) {
+        return response.status(200).json({ id: 1, name: 'something' })
+    }
+....................................................................................
+			 Request
+....................................................................................
+Handlers access request details, Nest provides access to the request object of the underlying platform(Express by default).
+We can access request object details by injecting @Req() decorator to the handler signature
+
+
+import {
+  Req,
+} from '@nestjs/common';
+import { Request } from 'express';
+
+  @Get('input')
+  public getUserDetail(@Req() request: Request): string {
+    console.log(request)
+    return 'user input';
+  }
+
+
+What are the details releated to request object?
+ Query Strings
+ Path Parameters
+ Http Headers
+ Body
+
+Nest provides decorators to access specific details - Platform nutural code
+Query String -@Query
+Path Params  -@Param
+Headers      -@Headers
+Body         -@Body
+...
+Host          -@HostParam
+Ip            -@Ip()
+
+
+Nest provides request object to access specific details - Express spcific
+Query String - req.query
+Path Params  - req.params
+Headers      - req.headers
+Body         - req.body
+
+Host         - req.hosts
+ip            -req.ip
+
+  //handles request details
+  @Get('reqdetails1')
+  public getRequestDetails1(@Req() request: Request): string {
+    console.log(`ip ${request.ip}`)
+    console.log(`host ${request.host}`)
+    console.log(request.headers)
+     
+    return 'request details 1';
+  }
+  @Get('reqdetails2')
+  public getRequestDetails2(@Headers() headers,@Ip() ip): string {
+    console.log(headers)     
+    console.log(ip)
+    return 'request details 2';
+  }
+...................................................................................
+			        Dynamic route - Route Parameters
+...................................................................................
+
+if you want to read dynamic data as part of request
+for eg:
+
+GET /users/1 /users/2  /users/3
+
+
+import {
+  Param,
+
+} from '@nestjs/common';
+import { User } from './user.type';
+import { Request } from 'express';
+  //dynamic parameters
+  @Get(':id')
+  public getUserById(@Param() params): string {
+    console.log(params);
+    return 'user by id';
+  }
+...................................................................................					Query params
+
+if you want to send Query params
+
+    //GET  /users/1?sort=asc;location=xxx
+    @Get('query')
+    public filterUsers(@Query() queryparams): string {
+        console.log(queryparams);
+        return 'query params';
+    }
+
+Req:
+GET users/query?a=10&b=23
+.....................................................................................
+			How to handle request body
+....................................................................................
+
+Client can send data to the server in many ways
+
+1.via URL 
+   Path Params  /resource/value
+   Query params /resource?a=10&b=30
+2.Via body of the Protocal - payload
+
+@Body - reads data
+req.body -reads data
+
+Action method
+@Post
+
+Steps:
+
+1.
+@Post("create")
+public create(){
+   return "user created"
+}
+
+2.read payload
+ @Post("create")
+  public create(@Body() payload){
+        console.log(payload)
+        return "user created"
+    }
+}
+
+3.if you are using ts, you need to create type for incoming payload
+ DTO - Data transfer object
+
+A DTO is an object that defines how the data will be sent over the network.
+We can define DTO schema by using ts interface,class or type keyword.
+Nest recommends only classes because classes are part of es 6 standard, suppose if later if you want to migrate code to js stack it will not be any issues
+
+src/users/create-user.dto.ts
+
+export class CreateUserDto {
+    id: number;
+    name: string;
+    age: number;
+    status: boolean
+}
+  //read body
+    @Post("create")
+    public create(@Body() createUserDto: CreateUserDto) {
+        console.log(createUserDto)
+        return "user created"
+    }
+
+
+Full code:
+import {
+    Controller,
+    Get,
+    HttpCode,
+    Header,
+    Headers,
+    Res,
+    Ip,
+    Param,
+    Query,
+    Post,
+    Req,
+    Body
+} from '@nestjs/common';
+import { User } from './user.type';
+import { Request } from 'express';
+import { CreateUserDto } from './create-user.dto';
+
+@Controller('users')
+export class UserController {
+    @Get()
+    @HttpCode(200)
+    @Header('secret', 'abc#239a')
+    public findAll(): string {
+        return 'Users';
+    }
+
+    @Get('user')
+    public findUser(): User {
+        return {
+            id: 1,
+            name: 'Subramanian',
+        };
+    }
+
+    //express way of returning response
+    @Get('express')
+    public findAllUsingExpress(@Res() response) {
+        return response.status(200).json({ id: 1, name: 'something' });
+    }
+
+    //GET  /users/1?sort=asc;location=xxx
+    @Get('query')
+    public filterUsers(@Query() queryparams): string {
+        console.log(queryparams);
+        return 'query params';
+    }
+
+    //dynamic parameters
+
+    @Get(':id')
+    public getUserById(@Param() params): string {
+        console.log(params);
+        return 'user by id';
+    }
+
+    //handles request details
+    @Get('reqdetails1')
+    public getRequestDetails1(@Req() request: Request): string {
+        console.log(`ip ${request.ip}`);
+        console.log(`host ${request.host}`);
+        console.log(request.headers);
+
+        return 'request details 1';
+    }
+    @Get('reqdetails2')
+    public getRequestDetails2(@Headers() headers, @Ip() ip): string {
+        console.log(headers);
+        console.log(ip);
+        return 'request details 2';
+    }
+    //
+    @Get('list')
+    public listAll(): Array<User> {
+        return [
+            {
+                id: 1,
+                name: 'Subramanian',
+            },
+            {
+                id: 2,
+                name: 'Ram',
+            },
+            {
+                id: 3,
+                name: 'Arun',
+            },
+        ];
+    }
+
+    //read body
+    @Post("create")
+    public create(@Body() createUserDto: CreateUserDto) {
+        console.log(payload)
+        return "user created"
+    }
+}
+.....................................................................................
+			  CURD
+....................................................................................
+Create -  POST
+Update -  PUT
+Read(GET) - @GET
+Delete   - @Delete
+
+import {
+  Controller,
+  Get,
+  Query,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Post,
+} from '@nestjs/common';
+import { CreateUserDto } from './create-user.dto';
+
+@Controller('users')
+export class UserController {
+  //create
+  @Post()
+  create(@Body() createUserDto: CreateUserDto): string {
+    return 'This action adds a new User';
+  }
+  //Query
+  @Get()
+  findAll(@Query() query) {
+    return 'This action user with query';
+  }
+  @Get(':id')
+  findOne(@Param('id') param) {
+    return 'This action returns one user';
+  }
+  @Put(':id')
+  update(@Param('id') param, @Body() updateUserDto) {
+    return 'This action update users';
+  }
+  @Delete(':id')
+  remove(@Param('id') param) {
+    return 'This action removes user';
+  }
+}
+...................................................................................
+			CURD automation
+
+if you want to write CURD operations using cli,
+
+ nest g resource users
+? What transport layer do you use? REST API
+? Would you like to generate CRUD entry points? Yes
+CREATE src/users/users.controller.ts (894 bytes)
+CREATE src/users/users.controller.spec.ts (566 bytes)
+CREATE src/users/users.module.ts (247 bytes)
+CREATE src/users/users.service.ts (609 bytes)
+CREATE src/users/users.service.spec.ts (453 bytes)
+CREATE src/users/dto/create-user.dto.ts (30 bytes)
+CREATE src/users/dto/update-user.dto.ts (169 bytes)
+CREATE src/users/entities/user.entity.ts (21 bytes)
+UPDATE src/app.module.ts (313 bytes)
+
+Without CURD generator:
+
+1.You have to generate module
+2.You have to create controller
+3.You have to create service
+4.you have to DTO objects
+5.You have to create Entity class for db 
+6.Proper configuration and dependency injection
+
+
+With CURD generator you can generate boiler plat code , then you can start editing code.
+................................................................................				Asynchronicity -Async Respsonse
+..................................................................................
+
+By default node is async,so we can send responses asyncly.
+
+if you talk to database, it may delay...
+
+Styles of async programming:
+1.callbacks
+2.Promises 
+3.Promises with async and await
+4.Rxjs
+
+
+sync
+ 
+It returns always string,objects,arrays
+
+async 
+api returns Promise /rxjs types
+...
+import { Controller, Get } from '@nestjs/common';
+
+@Controller('asyncapi')
+export class AsyncController {
+  // @Get()
+  // getAsyncResponse(): Promise<string> {
+  //     //return Promise.resolve('Hello')
+  //     return new Promise((resolve, reject) => {
+  //         setTimeout(resolve, 5000, 'Hello Promise')
+  //     })
+  // }
+
+  @Get()
+  async getAsyncResponse(): Promise<string> {
+    return 'Hello async fun'; // Promise.resolve('Hello)
+  }
+  // @Get()
+  // getAsyncResponse(): Promise<any[]> {
+  //     //return Promise.resolve('Hello')
+  //     return new Promise((resolve, reject) => {
+  //         setTimeout(resolve, 5000, [{ message: 'Hello Promise' }, { message: 'Hai Promise' }])
+  //     })
+  // }
+  @Get('sync')
+  getSyncResponse(): string {
+    return 'Sync';
+  }
+}
+.....................................................................................
+			Depedency Injection-Services,Providers
+.....................................................................................
+
+Injecting Object references into another Object, so that we can call another object apis.
+Provider means it provides some features to objects
+All Providers  are simple classes
+ could be 
+   services
+   repositories
+   facatories
+   helpers
+
+Why Providers?
+  Providers main idea is it can be injected as a dependency.
+
+How nest runtime creates instance of providers?
+
+In any Nest module , you can configure
+
+ providers: [UserService]
+
+All Provider classes are identified by the decorator
+     "@Injectable"
+
+Steps:
+
+1.declare Service class(Provider)
+
+
+export class GreeterService {
+    
+}
+
+2.decorate with Injectable decorator
+
+import {Injectable} from '@nestjs/common'
+
+@Injectable()
+export class GreeterService {
+
+}
+
+3.write biz logic
+import { Injectable } from '@nestjs/common';
+
+@Injectable()
+export class GreeterService {
+    private readonly message: string = 'Greeter Service';
+    constructor() { }
+
+    //Biz methods
+    public async sayGreet(): Promise<string> {
+        return this.message;
+    }
+}
+
+4.Inject - Provider configuration
+import { Module } from "@nestjs/common";
+import { GreetingController } from "./greeter.controller";
+import { GreeterService } from "./greeter.service";
+
+@Module({
+    imports: [],
+    controllers: [GreetingController],
+    providers:[GreeterService]
+})
+export class GreeterModule { }
+
+5.Depedency Injection
+ Grab the created instance into another object(controller)
+Nest supports only constructor dependency, so that we have to inject into constructor only.
+
+import { Controller, Get } from '@nestjs/common'
+import { GreeterService } from './greeter.service'
+//takes parameter ; url
+@Controller("greet")
+export class GreetingController {
+
+    constructor(private greeterService: GreeterService) { }
+
+    @Get()
+    public sayGreet(): Promise<string> {
+        return this.greeterService.sayGreet()
+    }
+}
+
 
 
 
