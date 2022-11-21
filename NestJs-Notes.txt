@@ -1227,6 +1227,741 @@ export class GreetingController {
         return this.greeterService.sayGreet()
     }
 }
+.....................................................................................
+			Middlewares
+.....................................................................................
+
+What is Middleware?
+  Middleware is a function which is called before the route handler.
+  Middlewares are used to preprocess the request.
+  Since Middleware is function which can process "request and response"
+
+Express sytax
+router.get("/url",function(req,res,next){}
+or
+app.get("/url",function(req,req,next){})
+
+The difference between request handler and middlewares are middlewares have third parameter called "next".
+ The value of next is function reference.
+
+you can have more than one middlewares too.
+
+How to write middlewares in nest?
+
+every middleware is a class which is injectable.
+
+import { Injectable, NestMiddleware } from "@nestjs/common";
+import { Request, Response, NextFunction } from "express";
+
+@Injectable()
+export class LoggerMiddleware implements NestMiddleware {
+
+    use(req: Request, res: Response, next: NextFunction) {
+        //any pre processing code 
+        console.log("Request....")
+        next() // moves controller to next middleware or controller
+    }
+}
+
+Configure Middlewares and Dependency Injection :
+
+
+In the Main Module
+
+In the App Module we need to implments NestModule interface
+
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AsyncController } from './app.asynccontroller';
+import { AppController } from './app.controller';
+import { GreeterModule } from './greeter/greeter.module';
+import { LoggerMiddleware } from './logger.middleware';
+import { UsersModule } from './users/users.module';
+
+@Module({
+  imports: [GreeterModule, UsersModule],
+  controllers: [AppController, AsyncController],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggerMiddleware).forRoutes('/');
+  }
+}
+
+Multiple urls:
+consumer.apply(LoggerMiddleware).forRoutes({path:'user',method:RequestMethod.ALL},);
+
+
+consumer.apply(LoggerMiddleware).forRoutes({path:'user',method:RequestMethod.GET});
+consumer.apply(LoggerMiddleware).forRoutes({path:'user',method:RequestMethod.PUT});
+
+exclude:
+  Method which excludes the middleware code to applied
+
+ consumer.apply(LoggerMiddleware)
+   .exclude({path:'remove',RequestMethod.DELETE})
+   .forRoutes('/');
+
+There are two ways of writing middlewares:
+
+1.class middleware - es6 and ts synatx
+2.functional middleware 
+   
+
+Nest even support functional functional
+
+import { Request, Response, NextFunction } from "express";
+export function logger(req: Request, res: Response, next: NextFunction) {
+    console.log("Function Logger ...")
+    next()
+}
+
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { AsyncController } from './app.asynccontroller';
+import { AppController } from './app.controller';
+import { GreeterModule } from './greeter/greeter.module';
+// import { LoggerMiddleware } from './logger.middleware';
+import { logger } from './loggerfun.middleware'
+import { UsersModule } from './users/users.module';
+
+@Module({
+  imports: [GreeterModule, UsersModule],
+  controllers: [AppController, AsyncController],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    //consumer.apply(LoggerMiddleware).forRoutes('/');
+    //consumer.apply(logger).forRoutes("/")
+    consumer.apply(logger).forRoutes(AppController)
+  }
+}
+....................................................................................
+How to multiple middlewares for a given route/ controller?
+
+logger.middleware.ts
+import { Request, Response, NextFunction } from "express";
+
+export function logger(req: Request, res: Response, next: NextFunction) {
+    console.log("Function Logger ...")
+    next()
+}
+
+greeting.middleware.ts
+
+import { Request, Response, NextFunction } from "express";
+
+export function greetMiddleware(req: Request, res: Response, next: NextFunction) {
+    console.log("welcome (Greeting Middlware)")
+    next()
+}
+
+
+app.module.ts
+@Module({
+  imports: [GreeterModule, UsersModule],
+  controllers: [AppController, AsyncController],
+})
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+   //applying mutiple middlewares
+    consumer.apply(logger, greetMiddleware).forRoutes(AppController);
+  }
+}
+..................................................................................
+			   Global Middlewares
+
+if you want to apply middlewares for every request and every method in the application -  Global Middlewares
+
+Global Middlewares are registeried in the main that means application object.
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+import { logger } from './loggerfun.middleware';
+
+async function bootstrap() {
+  //return Express container/Express app Object
+  const app = await NestFactory.create(AppModule);
+  //register global middlewares
+  app.use(logger);
+
+  await app.listen(3000);
+}
+bootstrap();
+....................................................................................
+			  Exception Handling
+...................................................................................
+
+Nest comes with a builtin exception layer which is responsible for processing all unhandled expceptions across the application.
+When an exception is handled by app code, it is caught by this layer which automatically sends an appropriate user-friendly response.
+
+Out of the Box, Nest handles exception by built in "Global Exception filter(middleware)".
+Which handles exceptions of type "HttpException".
+
+Error Response:
+
+ {
+  "statusCode" : 500,
+  "message" : "Internal Server Error" 
+ }
+
+How to throw an exception manually?
+
+ @Get("error")
+    public sayHello() {
+       // return "Error"
+       throw new HttpException("something went wrong",HttpStatus.FORBIDDEN)
+    }
+
+if you run this code, you will get response like below
+
+GET /greet/error
+
+{
+    "statusCode": 403,
+    "message": "something went wrong"
+}
+...
+
+eg:
+import { Injectable,Scope  } from '@nestjs/common';
+
+@Injectable({ scope: Scope.TRANSIENT })
+export class GreeterService {
+    private readonly message: string = 'Greeter Service';
+    constructor() { 
+        console.log('Greeter service is called')
+    }
+
+    //Biz methods
+    public async sayGreet(): Promise<string> {
+        return this.message;
+    }
+
+    public async sayHello(): Promise<string> {
+        //return "Hello"
+       return Promise.reject("something went wrong")
+    }
+}
+
+controller:
+
+import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { GreeterService } from './greeter.service';
+//takes parameter ; url
+@Controller('greet')
+export class GreetingController {
+    constructor(private greeterService: GreeterService) { }
+
+    @Get()
+    public sayGreet(): Promise<string> {
+        return this.greeterService.sayGreet();
+    }
+    @Get('error')
+    public async sayHello() {
+        try {
+            return await this.greeterService.sayHello();
+        } catch (err) {
+            throw new HttpException({
+                status: HttpStatus.FORBIDDEN,
+                error: err.message,
+            }, HttpStatus.FORBIDDEN, { cause: err });
+        }
+    }
+}
+..............................................................................
+			 How to handle custom Exception
+..................................................................................
+
+Write a Custom Exception
+
+
+import { HttpException, HttpStatus } from "@nestjs/common";
+
+
+import { HttpException, HttpStatus } from "@nestjs/common";
+
+
+export class GreeterException extends HttpException {
+    constructor(message:string='Greeter Exception') {
+        super(message, HttpStatus.BAD_REQUEST)
+    }
+}
+
+How to use that Exception?
+import { Controller, Get, HttpException, HttpStatus } from '@nestjs/common';
+import { GreeterException } from './greeter.exception';
+import { GreeterService } from './greeter.service';
+
+@Controller('greet')
+export class GreetingController {
+
+    //custom exception
+    @Get("customerr")
+    public sayHai(){
+        throw new GreeterException("Hai went wrong")
+    }
+
+}
+.....................................................................................	
+				Pipes
+.....................................................................................
+
+What is Pipe?
+  A Pipe is object decorated with "@Injectable" which implements PipeTranform Interface.
+
+Use cases of Pipe:
+1.Transformation : transform input data to the desired eg string to integer,
+2.Validation: evaluates the input data and if valid, simply pass it through unchanged, other wise throws an exception when input data is invalid.
+
+Pipes working pattern/flow:
+Pipes are called just before Controller methods are called.
+
+Pipes receives the arughments destined for the method and operates on them.
+Any transformation and validation takes place at that time , after which the route handler is invoked with any transformed arugments.
+
+Nest provides lot of built in pipes that yo can use out of the box.
+
+Built in pipes:
+1.ValidationPipe
+2.ParseIntPipe
+3.ParseFloatPipe
+etc..
+
+How to use/bind pipe with Routers?
+
+ParseIntPipe
+
+eg/:
+
+  @Get(":id")
+  findOne(@Param("id", ParseIntPipe) id: number) {
+    return id
+  }
+
+Here if any input with string with value is numbers , strings are converted into numbers and display the output.
+
+GET /100
+
+response 
+ 10
+
+GET /abc
+
+response
+{
+    "statusCode": 400,
+    "message": "Validation failed (numeric string is expected)",
+    "error": "Bad Request"
+}
+...................................................................................
+				Custom Pipes
+...................................................................................
+what if  i want to write our own pipes?
+
+Pipes are classes with @Injectable 
+
+import { ArgumentMetadata, PipeTransform } from "@nestjs/common";
+
+import { ArgumentMetadata, Injectable, PipeTransform } from "@nestjs/common";
+
+
+@Injectable()
+export class ValidationPipe implements PipeTransform {
+    transform(value: any, metadata: ArgumentMetadata) {
+         return parseInt(value)
+    }
+}
+
+value : parameter is the currently process method argument
+metadata: is currently processed method args's meta data.
+
+export interface ArgumentMetadata {
+ type: 'body' | 'query'| 'param' | 'custom',
+ metatype?: T<unknown>
+ data?:string
+}
+
+
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { ValidationPipe } from './validation.pipe';
+
+@Controller()
+export class AppController {
+  //custom in pipes
+  @Get(":id")
+  findOne(@Param("id", ValidationPipe) id: number) {
+    return id
+  }
+}
+...............................................................................
+			Service layer and Databases
+...............................................................................
+
+Nest is database independant, allowing you to easily integrate with any SQL and NOSQL database.
+Connecting to databse in nest is simple a matter of loading appropriate Node.js database drivers fr the database.
+.....................................................................................	
+			  Node.js based ORM frameworks
+
+Node.js(Nest) can integrate with any ORM frameworks.
+
+Types of Node.js and typescript based ORMS
+
+1.MikroORM
+2.Sequelize	
+3.TypeORM
+4.Knex.js
+5.Prisma		
+
+NoSql - Mongodb
+1.mongoose
+.....................................................................................
+				
+We are going to learn
+SQL database
+1.PostgreSQL /Mysql
+2.Sequelize ORM
+
+Steps :
+
+1. we need to start database.
+
+src
+ |
+ docker-compose.yml
+    version: "3"
+services:
+  mysql:
+    image: mysql:8
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: test
+    ports:
+      - "3307:3307"
+
+Through docker
+\nestdbapp>docker-compose up
+
+
+2.install all database dependencies
+
+npm install @nestjs/sequelize sequelize sequelize-typescript mysql2 --save
+
+npm install @types/sequelize 
+
+
+3.Connecting to database : Configuration of mysql database with Application.
+
+SequalizeModule must be injected into App Module with necessary configuration.
+.................................................................................
+
+app.module.ts
+import { AppService } from './app.service';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { User } from './user/entities/User.model';
+import { UserModule } from './user/user.module';
+
+@Module({
+  imports: [
+    SequelizeModule.forRoot({
+      dialect: 'mysql',
+      host: 'localhost',
+      port: 3306,
+      username: 'root',
+      password: 'root',
+      database: 'test',
+      autoLoadModels: true,
+      synchronize: true,
+    }),
+    UserModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService]
+})
+export class AppModule { }
+
+
+
+Once the above configuration over, The Sequelize Service Object will be available across the application without needing to import any module.
+
+
+Sequelize Service Object can be injected into other Service Object or into controller
+.
+
+eg:
+
+@Injectable()
+export class ProductService{ 
+  constructor(private sequelize:Squelize){}
+
+  findAll(){ 
+    this.sequelize.findAll()
+  }
+}
+.....................................................................................
+			 Entites /Models
+...................................................................................
+
+What is Enity/Model?
+  Object which is persistable into database.
+
+Design patterns for ORM programming:
+
+1.Active Record Pattern
+2.Repository Pattern
+
+Mostly we use Repository Pattern.
+
+How repository works?
+
+1.declare entity
+
+@Table
+@Enity
+class  User {
+   @Coulmn
+   id
+   
+}
+2.write repository class
+
+class UserRepository extends CurdRepository<User>{
+
+    //curd apis
+}
+
+
+1.Active Record Pattern
+
+Steps 
+1.Declare Entity and that entity going to act as Repository Itself..
+@Table
+@Enity
+class  User extends Model {
+   @Coulmn
+   id
+   
+}
+
+Sequelize implements "Active Record Pattern" - You can use the model classes directly to interact with the database.
+
+src/users/entities/user.model.ts
+
+import { Table, Column,Model } from 'sequelize-typescript'
+
+@Table
+export class User extends Model {
+    //column mapping
+    @Column
+    firstName: string
+
+    @Column
+    lastName: string
+
+    @Column({ defaultValue: true })
+    isActive: boolean
+
+}
+}
+.....................................................................................
+
+Full Example
+
+Steps:
+
+1.Model declaration with Active Record Pattern
+import { Table, Column,Model } from 'sequelize-typescript'
+
+@Table
+export class User extends Model {
+    //column mapping
+    @Column
+    firstName: string
+
+    @Column
+    lastName: string
+
+    @Column({ defaultValue: true })
+    isActive: boolean
+
+}
+
+2.Service layer
+user/services
+
+user.service.ts
+
+import { Injectable } from '@nestjs/common'
+import { InjectModel } from '@nestjs/sequelize'
+import { User } from '../entities/User.model'
+
+@Injectable()
+export class UserService {
+    //inject model , since it is acting as repospository
+    constructor(
+        @InjectModel(User)
+        private readonly userModel: typeof User,
+      ) {
+          console.log('user service is called')
+      }
+    //apis 
+    async findAll():Promise<User[]> {
+         //curd apis 
+         return this.userModel.findAll()
+    }
+}
+
+Controller
+
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { User } from './entities/user.model';
+import { UserService } from './services/user.service';
+
+@Controller('users')
+export class UserController {
+    constructor(private readonly userService: UserService) { }
+
+    @Get()
+    findAll(): Promise<User[]> {
+        return this.userService.findAll();
+    }
+
+
+}
+
+User Module:
+
+import { Module } from '@nestjs/common';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { User } from './entities/user.model';
+import { UserController } from './user.controller';
+import { UserService } from './services/user.service';
+
+@Module({
+    imports: [SequelizeModule.forFeature([User])],
+    providers: [UserService],
+    controllers: [UserController],
+})
+export class UserModule { }
+
+
+App Module:
+import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+import { SequelizeModule } from '@nestjs/sequelize';
+import { User } from './user/entities/User.model';
+import { UserModule } from './user/user.module';
+
+@Module({
+  imports: [
+    SequelizeModule.forRoot({
+      dialect: 'mysql',
+      host: 'localhost',
+      port: 3306,
+      username: 'root',
+      password: 'root',
+      database: 'test',
+      autoLoadModels: true,
+      synchronize: true,
+    }),UserModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService]
+})
+export class AppModule { }
+
+...................................................................................
+			 CREATE,Select,Remove,UPDATE
+
+
+import { Injectable } from '@nestjs/common'
+import { InjectModel } from '@nestjs/sequelize'
+import { User } from '../entities/User.model'
+import { CreateUserDto } from '../dto/create-user.dto'
+
+@Injectable()
+export class UserService {
+    //inject model , since it is acting as repospository
+    constructor(
+        @InjectModel(User)
+        private readonly userModel: typeof User,
+    ) {
+        console.log('user service is called')
+    }
+    //apis 
+    async findAll(): Promise<User[]> {
+        //curd apis 
+        return this.userModel.findAll()
+    }
+
+    create(createUserDto: CreateUserDto): Promise<User> {
+        return this.userModel.create({
+            firstName: createUserDto.firstName,
+            lastName: createUserDto.lastName,
+        });
+    }
+
+    findOne(id: string): Promise<User> {
+        return this.userModel.findOne({
+            where: {
+                id,
+            },
+        });
+    }
+
+    async remove(id: string): Promise<void> {
+        const user = await this.findOne(id);
+        await user.destroy();
+    }
+}
+
+Controllers:
+import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
+import { User } from './entities/user.model';
+import { UserService } from './services/user.service';
+import { CreateUserDto } from './dto/create-user.dto';
+
+@Controller('users')
+export class UserController {
+    constructor(private readonly userService: UserService) { }
+
+    @Get()
+    findAll(): Promise<User[]> {
+        return this.userService.findAll();
+    }
+    @Post()
+    create(@Body() createUserDto: CreateUserDto): Promise<User> {
+      return this.userService.create(createUserDto);
+    }
+
+
+    @Get(':id')
+    findOne(@Param('id') id: string): Promise<User> {
+      return this.userService.findOne(id);
+    }
+  
+    @Delete(':id')
+    remove(@Param('id') id: string): Promise<void> {
+      return this.userService.remove(id);
+    }
+
+}
+....................................................................................
+				MicroServices
+.....................................................................................
+
+
+
+For advanced Query Operations
+  Follow this doc.
+       https://sequelize.org/docs/v6/core-concepts/raw-queries/
+...................................................................................
+
+
+
+
+
+
+
 
 
 
