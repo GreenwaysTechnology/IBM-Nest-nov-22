@@ -1768,6 +1768,7 @@ Full Example
 Steps:
 
 1.Model declaration with Active Record Pattern
+
 import { Table, Column,Model } from 'sequelize-typescript'
 
 @Table
@@ -1945,22 +1946,360 @@ export class UserController {
     }
 
 }
-....................................................................................
-				MicroServices
-.....................................................................................
-
-
-
 For advanced Query Operations
   Follow this doc.
        https://sequelize.org/docs/v6/core-concepts/raw-queries/
+....................................................................................
+				MicroServices
+.....................................................................................
+What are microservices?
+
+Microservices - also known as the microservice architecture - is an architectural style that structures an application as a collection of services that are
+
+Highly maintainable and testable
+Loosely coupled
+Independently deployable
+Organized around business capabilities
+Owned by a small team
+
+
+How to break the applications?
+  Application is decomposed into smaller application called services
+
+Ecommerce:
+  Order -app
+  Customer-app
+  Invoice -app
+  Payments-app
+  Delivery -app
+.....................................................................................
+			  Microservice implmentation
+....................................................................................
+
+Nest natively Supports the microservice archtectural style of development.
+Nest offers di,decorators,exception filters,pipes, all features are applied for microservice development too.
+
+Where ever nest abstracts implementation details, so that nest allows to communicates apps which may be running different platforms like httpbased,tcp based,websocket....
+
+In Nest, a microservice is fundamentally an application aht uses a different transport layer than HTTP.
+Nest offers lot of transport layers, through which we can exchange/transmit messages.
+We have many transport layer , the default transport layer is "TCP".
+
+How to transmit/exchange data(message)?
+
+ Nest offers two style of message transportation
+
+1.request-response
+2.event-based
+
+Implementation:
+Steps:
+1.app1
+2.app2
+
+Use case:
+I am going to build two applications ,Gateway
+
+GateWay is app, which is reponsiable to connect http clients
+
+Client GET /api/something ---------APIGateWay------sendMessage------UserApplication
+
+UserApplication is TCP based Micro service app.
+
+Steps:
+
+1.create UserApplication
+
+1.1
+microservices>nest new usermicroservice
+1.2
+E:\session\IBM\2022\nov\nestapps\microservices>cd usermicroservice
+
+1.3
+install microservice packages/depedencies
+                 
+usermicroservice> npm install --save @nestjs/microservices
+
+1.3. In order convert nest http app into Microservice app, we need to configure main.ts
+
+By default Nest creates httpbased app only
+
+npm start
+
+> usermicroservice@0.0.1 start
+> nest start
+[Nest] 9840  - 22/11/2022, 9:54:37 am     LOG [NestFactory] Starting Nest application...
+[Nest] 9840  - 22/11/2022, 9:54:37 am     LOG [InstanceLoader] AppModule dependencies initialized +33ms
+[Nest] 9840  - 22/11/2022, 9:54:37 am     LOG [RoutesResolver] AppController {/}: +6ms
+[Nest] 9840  - 22/11/2022, 9:54:37 am     LOG [RouterExplorer] Mapped {/, GET} route +3ms
+[Nest] 9840  - 22/11/2022, 9:54:37 am     LOG [NestApplication] Nest application successfully started +3ms
+.....................................................................................
+NestFactory offers a static method called "createMicroService"
+
+Go to main.ts
+
+ type MicroserviceOptions = GrpcOptions | TcpOptions | RedisOptions | NatsOptions | MqttOptions | RmqOptions | KafkaOptions | CustomStrategy
+import MicroserviceOptions
+
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
+    AppModule,
+    {
+      transport: Transport.TCP,
+      options: {
+        port: 3001,
+      },
+    },
+  );
+  await app.listen();
+}
+bootstrap();
+.
+>npm start
+
+> usermicroservice@0.0.1 start
+> nest start
+
+[Nest] 6668  - 22/11/2022, 10:03:34 am     LOG [NestFactory] Starting Nest application...
+[Nest] 6668  - 22/11/2022, 10:03:34 am     LOG [InstanceLoader] AppModule dependencies initialized +31ms
+[Nest] 6668  - 22/11/2022, 10:03:34 am     LOG [NestMicroservice] Nest microservice successfully started +22ms
+..............................................................................
+
+Patterns (Message/events transmitting pattern):
+........................................
+
+Microservices recongnize both messages and events by patterns
+
+What is pattern?
+  Pattern is plain string value or literal object.
+  Patterns are seralized automaticall and can be sent over the network along with the   data portion of a message.
+
+Actors:
+  Sender  is app which transmits events or messages
+  Consumer is app which listens for events and message.
+
+Request-Response:
+=> It is style which is useful when you need to exchange messages between various external services.
+=> We can send message, the receiver receives messages without ack.
+=> It is fire and forget model.
+=> It is not usefull incase if you stream data using streaming protcals/transporters
+   such as kafa,NatsStreaming,rxjs
+
+How Request-Response works?
+ To enable request response message type, Nest creates two logical channels
+
+One is for transimiting the data while other waits for incoming responses.
+................................................................................
+How to send Message via Request-Response and How to listen for Message?
+
+Sender: to be discussed later
+
+Listener
+
+@Controller()
+export class Consumer{
+
+  @MessagePattern({cmd:'process'})
+  public getMessage(data:any){ 
+    //process the incoming data
+  }
+}
+
+Event-based Pattern:
+....................
+if you send data in streaming ways, events based would very usefull.
+You want to simply notify another service that a certain condition has occured in the part system.
+
+@EventPattern('nameoftheevent')
+
+@Controller()
+export class Consumer{
+
+  @MessagePattern({cmd:'process'})
+  public getMessage(data:any){ 
+    //process the incoming data
+  }
+
+  @EventPattern('user_created')
+  pulic onUserCreated(user:any){
+     //process the events
+  }
+}
+
+eg:
+import { Controller, Get } from '@nestjs/common';
+import { MessagePattern, EventPattern } from '@nestjs/microservices';
+import { AppService } from './app.service';
+
+@Controller()
+export class AppController {
+  constructor(private readonly appService: AppService) { }
+
+  @Get()
+  getHello(): string {
+    return this.appService.getHello();
+  }
+  //Listener methods : message based and event based
+  @MessagePattern({ cmd: 'process' })
+  public getData(data: any) {
+    console.log(data)
+    return data;
+  }
+
+  @EventPattern('user_created')
+  public onUserCreated(user: any) {
+    //biz logic 
+    console.log(user)
+  }
+}
 ...................................................................................
+              		 Client
+...................................................................................
+The Client Application is application which sends messages and publishes events.
+
+The Client Applications uses "ClientProxy" class used to send and publish events.
+
+ClientProxy has two methods
+
+1. send method - request-response
+2. emit method - event publishing
+
+ClientProxy is built in service class which is part of "ClientsModule".
+
+Before using ClientProxy we need to initalize the ClientsModule in the app.module.ts of client code.
+
+@Module({
+  imports: [
+    ClientsModule.register([{
+      name:'USERSERVICE', //token which is used for identififying services inside 			  ctrl/another service
+      transport:Transport.TCP,{
+        port:3001
+      }
+    }])
+  ]
+
+})
+
+register:
+  It is method used to establish connection between two microservices
+[]
+  It is array of objects representing microservice transportes
+{name:'UserService'}
+  name property is used as injection token that can be used inside another service/controller
+
+transport:  
+  which transporter is used to transmit messages and events
+options:
+  port: 
+   On which port the other microservice is listening on  
+Steps:
+
+1.create client app
+microservices>nest new gatwaymicroservice
+$ cd gatwaymicroservice
+microservices\gatwaymicroservice
+
+2.install microservice dependencies
+npm install @nestjs/microservices --save
+
+
+3.Configure Main Module - app.module.ts
+
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+@Module({
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'USERSERVICE',
+        transport: Transport.TCP,
+        options: {
+          port: 3001
+        }
+      }
+    ]),
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule { }
+.....................................................................................
+			  Send Message
+....................................................................................
+
+inside service or controller we need do clientProxy di
+
+constructor(@Inject('USERSERVICE') private client:ClientProxy){}
+
+
+
+Event Based:
+this.client.emit('user_created',user)
+
+Message Based:
+const pattern = {cmd:'process'}
+this.client.send(pattern,payload)
+			
+eg:
+import { Controller, Get, Post, Body, Inject } from '@nestjs/common';
+import { ClientProxy } from '@nestjs/microservices';
+import { AppService } from './app.service';
+import { Observable } from 'rxjs';
+
+@Controller()
+export class AppController {
+  constructor(@Inject('USERSERVICE') private readonly client: ClientProxy) {}
+
+  @Get()
+  getHello(): string {
+    return 'Hello';
+  }
+  //event based
+  @Post()
+  createUser(@Body() createUserRequest: any) {
+    // console.log(createUserRequest);
+    this.client.emit('user_created', createUserRequest);
+    return createUserRequest;
+  }
+
+  @Get("message")
+  accumulate(): Observable<number> {
+    const pattern = { cmd: 'process' };
+    const payload = [1, 2, 3];
+    return this.client.send<number>(pattern, payload);
+  }
+}
+....................................................................................
+				
+Case Study:
+
+Microservice
+
+App1 - Will get CURD requests
+APP2 - Will receive Message --- Database- MYSQL
 
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+  
 
 
 
