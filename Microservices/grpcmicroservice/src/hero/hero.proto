@@ -1,0 +1,21 @@
+//header segement
+syntax = "proto3";
+package hero;
+
+//Type definitions Segment
+message HeroById {
+  int32 id = 1;
+}
+
+message Hero {
+  int32 id = 1;
+  string name = 2;
+}
+//Service Segment
+service HeroService {
+  //request -reply -pattern
+  rpc FindOne (HeroById) returns (Hero);
+  //server streaming + client Streaming -  Bi Directional Streaming
+  rpc FindMany (stream HeroById) returns (stream Hero);
+}
+

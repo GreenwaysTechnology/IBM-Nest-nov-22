@@ -2284,6 +2284,680 @@ Microservice
 
 App1 - Will get CURD requests
 APP2 - Will receive Message --- Database- MYSQL
+.....................................................................................
+			Hybrid Microservices
+.....................................................................................
+
+What is hybrid microservices?
+
+Microservices either can be pure http or pure tcp based app - inter service communications
+
+Hybrid Microservices is mixed of both "http + tcp".
+
+Steps:
+
+1. nest new hybridmicroservice
+2. npm i --save @nestjs/microservices
+
+main.ts
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  // pure microservice configuration
+  /**
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
+    AppModule,
+    {
+      transport: Transport.TCP,
+      options: {
+        port: 3001,
+      },
+    },
+  );
+  await app.listen();
+   */
+  // Hybrid Application(Microservice) : HTTP + TCP
+  const app = await NestFactory.create(AppModule)
+  app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.TCP,
+  })
+  await app.startAllMicroservices()
+  await app.listen(3003)
+  console.log(`Application is runnning on ${await app.getUrl()}`)
+}
+bootstrap();
+..................................
+
+math.module.ts
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { MATH_SERVICE } from './math.constants';
+import { MathController } from './math.controller';
+
+@Module({
+  imports: [
+    ClientsModule.register([{ name: MATH_SERVICE, transport: Transport.TCP }])
+  ],
+  controllers: [MathController],
+})
+export class MathModule {}
+
+math.controller.ts
+import { Controller, Get, Inject } from '@nestjs/common';
+import { MATH_SERVICE } from './math.constants';
+import { ClientProxy, MessagePattern, EventPattern } from '@nestjs/microservices';
+import { Observable, of } from 'rxjs'
+@Controller('math')
+export class MathController {
+  constructor(@Inject(MATH_SERVICE) private readonly client: ClientProxy) { }
+
+  //http controller
+  @Get()
+  execute() {
+    const pattern = { cmd: 'sum' };
+    //data
+    const numbers = [1, 2, 3, 4, 5];
+    //invoke api
+    return this.client.send<number>(pattern, numbers);
+  }
+
+  @Get('trigger')
+  trigger() {
+    //data
+    const numbers = [1, 2, 3, 4, 5];
+    //invoke api
+    const res = this.client.emit('sum_trigger', numbers);
+    console.log(res)
+    //res.subscribe(x => console.log('subscriber',x));
+    return 'result'
+  }
+  //method to be called by message pattern
+
+  @MessagePattern({ cmd: 'sum' })
+  public sum(data: number[]) {
+    return (data || []).reduce((a, b) => a + b);
+  }
+
+  @EventPattern('sum_trigger')
+  public onSum(data: number[]): Observable<any> {
+    //biz logic 
+    console.log('trigger', data)
+    const result = (data || []).reduce((a, b) => a + b)
+    console.log(result)
+    return of(result)
+  }
+}
+
+math.constants.ts
+export const MATH_SERVICE = 'MATH_SERVICE'
+.....................................................................................
+			MicroService Representations
+.....................................................................................
+Micro services are represented / Microservices are designed based on communications
+
+1.Remote Procedure Invocation
+2.Messaging
+
+RPI Technologies:
+1.REST
+2.RPC-(gRPC)
+3.Apache Thrift
+
+
+1.REST
+  HTTP Based Microservice implementations.
+  This is common microservice implementations.
+We have implemented REST based Microservices in Nest
+
+2.RPC
+   Remote Procedure call,the remote methods are called with help of TCP protcal.
+  We have implemented TCP Based Microservices in Nest.
+
+The advanced version of RPI(RPC) -  gRPC
+  gRPC is advanced RPI based framework for building inter service communications
+
+............................................................................................. 
+ 			Internet based RPC/RPI - HTTP Driven RPC
+.............................................................................................
+
+WebServices:
+ It is a remote program, having api , communicated via http protocal , transfer data
+
+SOAP Based:
+ it is similar to legacy rpc but communicated over soap over http,transfer xml based data.
+
+REST: 
+ It is also RPC but only works with http, carries multiple data format,json was understood
+light models
+
+
+SOA Architectures:
+ based on xml distributed programming
+..............................................................................................
+				Microservices and API Design
+.............................................................................................
+
+1.REST API 
+   -easy to use/develop
+ -what if my app is using multiple languages
+    RPC
+
+Drawbacks of REST/HTTP protocal.
+
+REST arch built on the top of "http 1.1" protocal version.
+
+
+1.multi request-reponse cycle
+   in every req-res - tcp connection is created
+
+2.Headers are plain text which takes lot of space
+● HTTP is stateless
+	○ Headers are sent in every request
+	○ Carries info like Cookie
+	○ Plain text - relatively large in size
+	○ Can not be compressed
+
+3.Serialization & Deserialization
+   since http1.1 send always text, not binary which are speedy.
+
+
+4.API Contract
+   There is no api contract (strongly typed) which makes confussion among applications.
+
+5.Client SDK
+   There is no proper client sdk to process http messages.
+...................................................................................
+				Google and http Protocal
+.....................................................................................
+
+Google started a project called SPDY (pronounced "speedy") is a deprecated open-specification communication protocol that was developed primarily at Google for transporting web content.[1] SPDY manipulates HTTP traffic
+
+later spdy was opensourced named "HTTP/2"
+
+SPDY became the basis for HTTP/2 specification
+
+Why?
+-tcp multiplxing -  non blocking arch
+-Binary
+-Header Compression
+-Flow Control -Streaming
+............................................................................................
+			RPC - Framework alternate to REST based design
+............................................................................................
+
+Google has  started working on RPC systems more than 15 years from now , for service communicaitons.
+
+Project Name 
+Stubby
+● RPC Framework from Google
+● 15 years
+● 10 billions reqs / sec!!!!
+● Cross-platform
+
+........................................
+● Tightly coupled with infrastructure
+............................................................................................
+				gRPC 
+
+● Developed at Google
+● Inspired by Stubby
+● Released in 2016
+● Adopted by
+	○ Netflix
+	○ Microsoft
+● Belongs to CNCF
+...........................................................................................
+				Why gRPC
+
+HTTP2 is default.
+○ Binary
+○ Multiplexing
+○ Flow-control
+● Non-blocking, Streaming bindings
+● Protobuf
+○ Strict Typing
+○ DTO
+○ Service definitions
+○ Language-agnostic
+○ Auto-generated bindings for multiple languages
+● Great for mobile apps
+..............................................................................................
+			ProtoBuff-Protocol Buffers
+..............................................................................................
+
+
+● IDL (interface description language) for API
+● Platform neutral
+● Language neutral
+● Serializing/Deserializing structured data
+● Very Fast / Optimized for interservices communication
+● Provides client libraries automatically for many languages!
+○ Java
+○ C++
+○ Javascript
+○ Go
+○ Ruby
+○ C#
+○ Python
+
+.....................................................................................
+					Steps to Build gRPC- api style services
+.............................................................................................
+
+1.Design Api using ProtoBuff language
+
+2.Pick your language for writing services - java,js(node - any framework(nest))
+   2.1. write service
+   2.2. write servers
+   2.3. clients to communicate services via server.
+.....................................................................................
+ProtoBuff IDL program:
+......................
+
+1.protobuff file has to be saved - serviceName.proto
+
+2.proto is strongly typed , that means we have to specifify the type
+
+3.Field Numbers:
+  -which is used by proto interal representation to identify the fields like in REST-Json
+is identified by "key": "value" - "id" : 1
+
+ each field in the message definition has a unique number.
+
+ These field numbers are used to identify your fields in the message binary format, and should not be changed once your message type is in use. Note that field numbers in the range 1 through 15 take one byte to encode
+ncluding the field number and the field's type (you can find out more about this in Protocol Buffer Encoding). Field numbers in the range 16 through 2047 take two bytes. So you should reserve the numbers 1 through 15 for very frequently occurring message elements. Remember to leave some room for frequently occurring elements that might be added in the future.
+
+The smallest field number you can specify is 1, and the largest is 229 - 1, or 536,870,911
+
+
+person.proto
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32 age = 2;
+}
+....................................................................................
+				ProtoBuff Lanaguage				
+.....................................................................................
+Message Fundamentals
+Service Definitions
+
+  
+.....................................................................................			Complex Types-Composit Types
+.....................................................................................
+proto files
+
+person.proto
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+}
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32  age = 2;
+  Address address = 3;
+
+}
+.....................................................................................
+			Collecition types - repeated - arrays
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+}
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32  age = 2;
+  Address address = 3;
+  repeated string skills = 4;
+
+}
+....................................................................................
+.............................................................................................
+					Map-Type
+............................................................................................
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+}
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32  age = 2;
+  Address address = 3;
+  repeated string skills = 4;
+  map<string,string> values=5;
+
+}
+.....................................................................................
+					Enum
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+}
+
+enum Feedback {
+  UNKNOWN = 0; //default value
+  GOOD = 1 ;
+  BAD = 2;
+  VERYGOOD = 3;
+}
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32  age = 2;
+  Address address = 3;
+  repeated string skills = 4;
+  map<string, string> values = 5;
+  Feedback feeback = 6;
+
+}
+............................................................................................
+				 Default Values
+............................................................................................
+int32 / any number type ->0
+bool ->false
+string ->empty string
+enum ->first value
+repeated -> empty list
+map ->wrapper / empty map
+
+.........
+				Proto and Modularity
+............................................................................................
+			
+src/main/proto/common/address.proto
+
+
+syntax = "proto3";
+//option
+option java_multiple_files = true;
+//package
+option java_package = "com.wipro.models";
+
+message Address {
+  string street = 1;
+  string city = 2;
+  string state = 3;
+}
+
+................................................................................
+			Modualrity and Proto Buff
+
+src/main/proto/person.proto
+
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+//link other proto files
+import "common/address.proto";
+
+enum Feedback {
+  UNKNOWN = 0; //default value
+  GOOD = 1 ;
+  BAD = 2;
+  VERYGOOD = 3;
+}
+
+//type definition ; in java which is represented as entity class
+message Person {
+  //fields of the entity
+  // string is type
+  //name is field(variable)
+  //1 is identifier
+  string name = 1;
+  int32  age = 2;
+  Address address = 3;
+  repeated string skills = 4;
+  map<string, string> values = 5;
+  Feedback feeback = 6;
+
+}
+
+..........................................................................................
+				Unary Service
+............................................................................................
+
+Steps:
+
+1.define proto service definition
+
+
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+//message types
+message HelloRequest{
+  string name = 1;
+  repeated string hobbies = 2;
+}
+message HelloResponse {
+  string greeting = 1;
+}
+//service definition
+service  GreetingService {
+  //define rpc operation: Unary: Request-Reply - Fire and Forget -  HTTP - GET
+  rpc greeting(HelloRequest) returns (HelloResponse);
+}
+....................................................................................
+
+                                   Server Streaming
+
+Use case : money withdrawal , i want to with draw money 10$ each of total 40$
+					
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message  BalanceCheckRequest{
+  int32 account_number = 1;
+}
+message Balance {
+  int32 amount = 1;
+}
+//WithDrawRequest
+
+message WithDrawRequest {
+  int32 account_number = 1;
+  int32 amount = 2;
+}
+//Money to be withdrawn
+message Money {
+  int32 money = 1;
+}
+
+//Bank service
+service BankService {
+  //unary
+  rpc getBalance(BalanceCheckRequest) returns (Balance);
+  //server streaming
+  rpc withdraw(WithDrawRequest) returns(stream Money);
+
+}
+....................................................................................
+			 Client Streaming
+....................................................................................
+                         
+				
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+
+message  BalanceCheckRequest{
+  int32 account_number = 1;
+}
+message Balance {
+  int32 amount = 1;
+}
+//WithDrawRequest
+
+message WithDrawRequest {
+  int32 account_number = 1;
+  int32 amount = 2;
+}
+//Money to be withdrawn
+message Money {
+  int32 money = 1;
+}
+
+//Bank service
+service BankService {
+  //unary
+  rpc getBalance(BalanceCheckRequest) returns (Balance);
+  //server streaming
+  rpc withdraw(stream WithDrawRequest) returns(Money);
+
+}
+....................................................................................
+			BiDirectional  Streaming
+....................................................................................
+                         
+bankservice.proto
+				
+//proto buff language version ; if dont, default version is 2
+syntax = "proto3";
+package "bank"
+
+message  BalanceCheckRequest{
+  int32 account_number = 1;
+}
+message Balance {
+  int32 amount = 1;
+}
+//WithDrawRequest
+
+message WithDrawRequest {
+  int32 account_number = 1;
+  int32 amount = 2;
+}
+//Money to be withdrawn
+message Money {
+  int32 money = 1;
+}
+
+//Bank service
+service BankService {
+  //unary
+  rpc getBalance(BalanceCheckRequest) returns (Balance);
+  //server streaming
+  rpc withdraw(stream WithDrawRequest) returns(stream Money);
+
+}
+.....................................................................................
+			 How to Build gRpc Microservices
+.....................................................................................
+
+Req:
+1.proto file
+2.gRpc Server
+3.Deploy gRpc apps on gRpc server
+4.Client apps can start communicating with grpc clients.
+
+Steps :
+
+1. create nest app
+   nest new grpcmicroservice
+
+2.install packages
+  
+  npm install @nestjs/microservices
+  npm i --save @nestjs/grpc-js @grpc/proto-loader --save
+
+3.nest-cli.json
+    will have proto buff file dedection configuration.
+{
+  "compilerOptions": {
+    "assets": [
+      "**/*.proto"
+    ],
+    "watchAssets": true
+  }
+}
+
+4.Create MicroService gRpc:
+  Note: It can be hybrid app or With another app(http) 
+ 
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions } from '@nestjs/microservices';
+import { AppModule } from './app.module';
+import { grpcClientOptions } from './grpc-client.options';
+
+async function bootstrap() {
+  /**
+   * This example contains a hybrid application (HTTP + gRPC)
+   * You can switch to a microservice with NestFactory.createMicroservice() as follows:
+   *
+   * const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+   *  transport: Transport.GRPC,
+   *  options: {
+   *    package: 'hero',
+   *    protoPath: join(__dirname, './hero/hero.proto'),
+   *  }
+   * });
+   * await app.listen();
+   *
+   */
+  const app = await NestFactory.create(AppModule);
+  app.connectMicroservice<MicroserviceOptions>(grpcClientOptions);
+
+  await app.startAllMicroservices();
+  await app.listen(3001);
+  console.log(`Application is running on: ${await app.getUrl()}`);
+}
+bootstrap();
+
+
+
+
 
 
 
