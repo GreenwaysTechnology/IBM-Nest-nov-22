@@ -2444,7 +2444,7 @@ SOA Architectures:
  -what if my app is using multiple languages
     RPC
 
-Drawbacks of REST/HTTP protocal.
+Drawbacks of REST/HTTP1.1 protocal.
 
 REST arch built on the top of "http 1.1" protocal version.
 
@@ -2543,7 +2543,7 @@ HTTP2 is default.
 ○ Python
 
 .....................................................................................
-					Steps to Build gRPC- api style services
+			Steps to Build gRPC- api style services
 .............................................................................................
 
 1.Design Api using ProtoBuff language
@@ -2954,26 +2954,804 @@ async function bootstrap() {
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
+.....................................................................................
+			Grpc Server and Grpc Client Apps
+....................................................................................
+
+Server:
+
+Steps
+1.nest new grpcserver
+2.
+ npm i --save @grpc/grpc-js @grpc/proto-loader
+ npm i --save @nestjs/microservices
+
+3.nest-cli.json
+{
+  "compilerOptions": {
+    "assets": ["**/*.proto"],
+    "watchAssets": true
+  }
+}
+4.src/hero/hero.proto
+
+// hero/hero.proto
+syntax = "proto3";
+
+package hero;
+
+service HeroesService {
+  rpc FindOne (HeroById) returns (Hero) {}
+}
+
+message HeroById {
+  int32 id = 1;
+}
+
+message Hero {
+  int32 id = 1;
+  string name = 2;
+}
+
+Types:
+src/hero/interfaces
+
+hero-by-id.interface.ts
+export interface HeroById {
+  id: number;
+}
+src/hero/hero.interface.ts
+export interface Hero {
+  id: number;
+  name: string;
+}
+src/hero/hero.service.ts
+
+import { Observable } from "rxjs";
+import { HeroById } from "./hero-by-id.interface";
+import { Hero } from "./hero.interface";
+
+export interface HeroService {
+    findOne(data: HeroById): Observable<Hero>;
+}
+
+Service Defintion:
+
+import { Controller } from '@nestjs/common';
+import { GrpcMethod } from '@nestjs/microservices';
+import { Metadata, ServerUnaryCall } from '@grpc/grpc-js';
+import { HeroById } from './interfaces/hero-by-id.interface';
+import { Hero } from './interfaces/hero.interface';
+import { HeroService } from './interfaces/hero.service';
 
 
+@Controller()
+export class HeroesController {
+  @GrpcMethod('HeroesService', 'FindOne')
+  findOne(data: HeroById, metadata: Metadata, call: ServerUnaryCall<any, any>): Hero   {
+    const items = [
+      { id: 1, name: 'John' },
+      { id: 2, name: 'Doe' },
+    ];
+    return items.find(({ id }) => id === data.id);
+  }
+}
+
+src/hero/hero.module.ts
+import { Module } from '@nestjs/common';
+import { HeroesController } from './hero.controller';
+
+@Module({
+  imports: [],
+  controllers: [HeroesController],
+})
+export class HeroModule { }
+
+src/app.module.ts
+import { Module } from '@nestjs/common';
+import { HeroModule } from './hero/hero.module';
+
+@Module({
+  imports: [HeroModule],
+})
+export class AppModule {}
+
+src/main.ts
+import { NestFactory } from '@nestjs/core';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { AppModule } from './app.module';
+import { join } from 'path'
+
+async function bootstrap() {
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(
+    AppModule,
+    {
+      transport: Transport.GRPC,
+      options: {
+        package: 'hero',         
+        protoPath: join(__dirname, 'hero/hero.proto'),
+      },
+    },
+  );
+  await app.listen();
+  console.log(`Grpc Server is Running... `);
+}
+bootstrap();
+
+..................................................................................
+
+Grpc Client App : HTTP App:
+...........................
+
+Steps
+1.nest new grpcclient
+2.
+ npm i --save @grpc/grpc-js @grpc/proto-loader
+ npm i --save @nestjs/microservices
+
+3.nest-cli.json
+{
+  "compilerOptions": {
+    "assets": ["**/*.proto"],
+    "watchAssets": true
+  }
+}
+4.src/hero/hero.proto
+
+// hero/hero.proto
+syntax = "proto3";
+
+package hero;
+
+service HeroesService {
+  rpc FindOne (HeroById) returns (Hero) {}
+}
+
+message HeroById {
+  int32 id = 1;
+}
+
+message Hero {
+  int32 id = 1;
+  string name = 2;
+}
+
+5.main.ts -HTTP server
+
+import { NestFactory } from '@nestjs/core';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const app = await NestFactory.create(AppModule);
+  await app.listen(3001);
+}
+bootstrap();
+
+6.src/hero/hero.proto
+
+// hero/hero.proto
+syntax = "proto3";
+
+package hero;
+
+service HeroesService {
+  rpc FindOne (HeroById) returns (Hero) {}
+}
+
+message HeroById {
+  int32 id = 1;
+}
+
+message Hero {
+  int32 id = 1;
+  string name = 2;
+}
+Note: The file should match exactly same as server.
+
+6.Types:
+src/hero/interfaces
+
+hero-by-id.interface.ts
+export interface HeroById {
+  id: number;
+}
+src/hero/hero.interface.ts
+export interface Hero {
+  id: number;
+  name: string;
+}
+src/hero/hero.service.ts
+
+import { Observable } from "rxjs";
+import { HeroById } from "./hero-by-id.interface";
+import { Hero } from "./hero.interface";
+export interface HeroService {
+    findOne(data: HeroById): Observable<Hero>;
+}
+
+7.src/hero/grpc-client.options : Server Configuration
+
+import { ClientOptions, Transport } from '@nestjs/microservices';
+import { join } from 'path';
+
+export const grpcClientOptions: ClientOptions = {
+  transport: Transport.GRPC,
+  options: {
+    package: 'hero', // ['hero', 'hero2']
+    protoPath: join(__dirname, './hero/hero.proto'),
+  },
+};
+
+7.src/hero/hero.module.ts
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+// import { grpcClientOptions } from '../grpc-client.options';
+import { HeroController } from './hero.controller';
+import { join } from 'path';
+import { grpcClientOptions } from 'src/grpc-client.options';
+
+@Module({
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'HERO_PACKAGE',
+        ...grpcClientOptions,
+      },
+    ]),
+  ],
+  controllers: [HeroController],
+})
+export class HeroModule { }
+
+src/hero/hero.controller.ts
+import { Controller, Get, Inject, OnModuleInit, Param } from '@nestjs/common';
+import {
+  ClientGrpc
+} from '@nestjs/microservices';
+import { Observable } from 'rxjs';
+import { HeroById } from './interfaces/hero-by-id.interface';
+import { Hero } from './interfaces/hero.interface';
+import { HeroService } from './interfaces/hero.service';
+
+@Controller('hero')
+export class HeroController implements OnModuleInit {
+  private readonly items: Hero[] = [
+    { id: 1, name: 'John' },
+    { id: 2, name: 'Doe' },
+  ];
+  private heroService: HeroService;
+
+  constructor(@Inject('HERO_PACKAGE') private readonly client: ClientGrpc) { }
+
+  onModuleInit() {
+    this.heroService = this.client.getService<HeroService>('HeroesService');
+    this.heroService.findOne({ id: 1 }).subscribe(x => console.log(x));
+  }
+
+  @Get(':id')
+  getById(@Param('id') id: string): Observable<Hero> {
+    return this.heroService.findOne({ id: +id });
+  }
 
 
+}
+app.module.ts
 
+import { Module } from '@nestjs/common';
+import { HeroModule } from './hero/hero.module';
 
+@Module({
+  imports: [HeroModule],
+})
+export class AppModule {}
 
+...................................................................................
 
+Open Two cmd prompt
+grpcserverclient\grpcclient>npm run start:dev
+grpcserverclient\grpcserver>npm run start:dev
 
+open browser/postman
+http://localhost:3001/hero/1
 
+Response:
+{
+id: 1,
+name: "John"
+}
+.....................................................................................
+					GraphQL
 
+Contents:
 
+1.GraphQL fundamentals
+2.GraphQL implementations on java
+   -Spring Boot -graphql-java--Netflix dgs framework
+3.Federation using Appllo server
 
+What is GraphQL?
 
+ GraphQL is new API standard that provides efficient and flexible  way of getting and sending data over network.
 
+How to distribute data in distributed computing(monolithic/microservices)?
 
+In the Network :internet how to distribute data across the different machines and systems.
+  Web : System where we can distribute data over internet.
 
+Web 1 stage : 1989 -to 1995 - web distribtuted data in the form of documents(HTML) -Static web pages.
 
+Web 2 Stage : 1995 to tilldate : Dynamic content generation technology
+   -Program which queries data from the database/datasource, prepares html documents onfly.
+-CGI - C,Perl
+-SUN - J2EE based on java language - web container was JRE- Servlet
+-Microsoft - ASP
+-PHP
 
+Web 3 Stage : 1996 --- till date : BtoB integration- ECommerce
+
+WebServices:
+  Program which distributes data not html doc.
+
+Data interchange format: xml,json,txt........
+
+XML was proposed major data interchange format.
+
+Based on XML Webservices were implemented- 
+   SOAP Web Services
+   SOA Arch based XML web services : XML based microservices...
+
+Web 4 State : 2005 to till date : Bto B integration and mobility computing.
+
+REST: Representational state Transfer : Spec /Theory
+
+ Talks about how to build distribtued system to distribute data over internet(http) in form of multiple different data formats.
+
+REStFull WebServices:
+  It is implementation based on REST spec how to distribute data in different forms.
+JSON become defacto standard in distributing data over internet.
   
+Common Idea/characteristics of RESTFull web Services:
+
+1.Data Fetching:
+   Data is fetched via URI.
+   Each Resource(data Representation) which represents biz domain.
+    User,Product,LineItem,.....
+
+/api/products => list of products
+/api/products/1 => get single product
+/api/products/1/reviews/ get review of product 1
+
+/api/products:
+ { 
+   id
+   name
+   imageurl
+   stock
+   qty
+   price
+   .......
+ }
+..............................................................................................
+			  Technologies/Methodlogies which expose data 
+
+1.RPC
+
+2.WebServices
+   -Soap
+   -REST
+   -GRAPHQL
+
+GraphQL was developed to solve the drawback of RESTFull webservices but not replacement.
+............................................................................................
+			
+What is Graph?
+  It is every where , you are part of graph,every thing is connected via some relationship which forms graph.
+  Collection of nodes and its relationship.
+  Each node has properties.
+
+Object oriented Programming express this idea in the form of "Hierachy theory" - HAS-a .
+
+What is QL?
+ Query language.
+SQL     - Structured Query Language
+  SQL used to read and manipulate data in database,during sql read, we can select single or mulitple columns, as we need , we may query one table or many tables.
+
+GraphQL - graph Query Lanaguage
+  In the same way GraphQl also queries data from the "connected Structure"
+
+What is GraphQL?
+ 
+ IT is language or spec which uses a concept of graph and query language to access and mutate data.
+ 
+GraphQL implemntations:
+
+GraphQL is platform and language indepandent.
+
+Java :
+ graphql-java
+ Spring-graphql
+ DGSFramework for SpringBoot.
+
+Javascript:
+  graphql-js
+..............................................................................................
+				   GraphQL CORE Spec
+..............................................................................................
+
+There are two actors in GraphQL:
+
+1.GraphQL Service Provider  - server side apps
+2.GraphQL Consumer/Clients-  Can be mobile apps,Browser apps(react,angular),testing clients
+
+GraphQL provides two sub set language:
+
+1.GraphQL Query Language  - client side
+2.GraphQL Schema Language - Server side
+
+
+..............................................................................................
+			  GraphQL request and response model.
+
+
+Declarative Programming:
+
+What you write, you have to get the same structure.
+
+The Queryql request is more readable,declarative. WHich micics the javascript object literal syntax.
+
+js object:
+
+ let user =  {
+     id:1,
+     name:'joe'
+     friends: [
+        'bar','foo'
+     ]
+  } 
+
+GraphQL Request payload : GraphQL Query
+.......................................
+
+GraphQL Client 
+
+  {
+     id
+     name
+     friends { -----------------------------> GraphQLServer
+        name
+     }
+  } 
+
+Response:JSON
+ {
+     "id":1,
+     "name":"joe"
+     "friends": [      <----------------------------- GraphQLServer
+        "bar","foo"
+     ]
+  } 
+
+..............................................................................................
+				 REST AND CURD
+
+Operations Type
+
+GET ------Read
+POST -----CREATE
+PUT ------UPDATE
+DELETE----Remove
+.............................................................................................
+				GRAPHQL And CURD
+
+
+GraphQL uses only URL which exposes Service
+
+
+  {
+     id
+     name
+     friends { -----------HTTP POST------------------> GraphQLServer
+        name
+     }
+  } 
+
+Operation Types:
+
+1.Query
+  read
+2.mutation
+  create,update,delete
+3.subscription
+   Streaming
+
+query - a read only fetch
+mutation- a write followed by read
+subscription- a long live request that fetches data in response to source events
+..............................................................................................
+
+Core concepts in Request (Query):
+.........................
+
+1.selection set
+
+ selectionSet : { Selection }
+
+Selection:
+ -fields
+ -Fragement Spread
+ -lnline fragement.
+
+ { 
+  firstname
+  lastname
+  age
+ }
+
+Selection set to be selected by somebody(Operation)
+
+An Operation selects the set of information it needs, exactly will receive that information
+
+Operation and Selection Set
+
+query {
+ firstname
+  lastname
+  age
+}
+mutation createUser(params){
+  user
+}
+subscription getPriceQuote(params) {
+ price
+ name
+}
+..................
+
+Fields: 
+
+Are properties of an object.
+
+{
+ person {
+   name
+ }
+}
+
+{
+  "data": {
+    "person" : {
+      "name": "Subramaian"
+    }
+  }
+}
+
+Here name is field returns data with String Type
+
+
+Fields are dyamic:
+.................
+
+{
+ person {
+   name
+ }
+ contacts {
+   name
+ }
+}
+
+{
+  "data": {
+    "person" : {
+      "name": "Subramaian"
+    },
+    "contacts": [{"name":"foo"},{"name":bar"} ]
+  }
+}
+
+fields are more dynamic:
+........................
+{
+ person {
+   name
+ }
+ brithday {
+   day
+   month
+ }
+ contacts {
+   name
+ }
+}
+	.....................................................................
+
+					Arguments:
+.........................................................................................
+
+field (arg:value) {
+
+   field
+}
+
+{
+  user(id:1) {
+    id
+    name
+    profilePic(height:100,width:100)
+  }
+}
+.........................................................................................
+				  Field Aliases
+..........................................................................................
+
+Without aliases:
+
+{ 
+
+ user(id:1) {
+    id
+    name
+ }
+
+}
+
+{
+  "data": {
+    "user" : {
+      "id" :1
+      "name": "Subramaian"
+    }
+  }
+}
+
+{ 
+
+ subu:user(id:1) {
+    id
+    name
+ }
+
+}
+With aliases:
+{
+  "data": {
+    "subu" : {
+      "id" :1
+      "name": "Subramaian"
+    }
+  }
+}
+..............................................................................................
+				  Fragments: Resuable SelectionSet
+..............................................................................................
+
+Without Fragment:
+.................
+
+{
+ user(id:4) {
+
+  friends {
+    id
+    name
+    pic
+  }
+  mutualfriends {
+    id
+    name
+    pic
+  }
+ }
+
+}
+
+With Fragment:
+.................
+
+{
+  user(id:4) {
+
+  friends {
+    ...friendsFields
+  }
+  mutualfriends {
+   ...friendsFields
+  }
+ }
+
+}
+fragement friendsFields on User {
+  id
+  name
+  pic
+}
+.............................................................................................
+				  Dynamic Arguments-Variables
+..............................................................................................
+
+Query can be paramertized with variables, maximizing query reuse
+
+Syntax:
+   $variableName
+
+{
+  getProfile($id:Int){
+    user {
+      name
+      pic
+    }
+  }
+}
+
+How to pass variable 
+{"id" : 5 }
+{"id" : 6 }
+
+Variable default Value
+
+{
+  getProfile($id:Int=2){
+    user {
+      name
+      pic
+    }
+  }
+}
+
+more variables
+{
+  getProfile($id:Int,$withFriends:Boolean=false){
+    user {
+      name
+      pic  
+    }
+  }
+}
+{"id" : 5 ,"withFriends":false}
+..............................................................................................
+				 Directives : control flow
+
+@include(if:Boolean)
+@skip(if:Boolean)
+
+{
+  getProfile($id:Int,$withFriends:Boolean=false){
+    user {
+      name
+      pic  
+      friends @include(if:$withFriends)   {
+	name
+      }
+    }
+  }
+}
+{"id" : 5 ,"withFriends":true}
+.....................................................................................				   Server Side Design
+			Schema Defintion language
+..............................................................................................
+
+GraphQL Development Components:
+
+1.schema defintion 
+   schema.graphqls
+2.Domain models 
+3.Data Fetcher
+  
+
+How to start Graphql apps?
+
+1.Schema driven
+   write schema first 
+   schema is written based on biz use case like apis and data struture
+   
+2.Model driven
+   create models(POJOS) , based on Model , we can create Schema
+.....................................................................................
+
+query User {
+
+}
+
 
 
 

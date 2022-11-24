@@ -1,0 +1,23 @@
+// hero/hero.proto
+syntax = "proto3";
+// package is used to identify the proto definitions uniquly
+package hero;
+
+//Data definitions - (Type and Variables declartions)
+message HeroById {
+  int32 id = 1;
+}
+
+message Hero {
+  int32 id = 1;
+  string name = 2;
+}
+// Service Definitions
+service HeroesService {
+  rpc FindOne (HeroById) returns (Hero) {}
+}
+// service HeroinesService {
+
+// }
+
+
