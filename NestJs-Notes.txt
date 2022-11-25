@@ -4284,11 +4284,18 @@ Steps:
 4.YOu need to write Service class which will  interact with database.
 5.You need to test GraphQl Using GraphQl playground tool
 
-
 ....................................................................................
 
+REST Api
+Grpc Api
+TCP Api
+GraphQl api
+.....................................................................................
 
-
+GRPC
+GrpcController ----Service-----Squlize -  
+    
+GraphQL -GraphQLResolver ---Service --Sequalize
 
 
 
