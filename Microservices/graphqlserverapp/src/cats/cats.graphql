@@ -1,0 +1,42 @@
+"""
+Service Api Operations
+Query - Read
+Mutation - Create,Update,Delete and Read 
+Subscription - Read with Stream Support
+"""
+type Query {
+  cats: [Cat]
+  cat(id: ID!): Cat
+}
+
+type Mutation {
+  createCat(createCatInput: CreateCatInput): Cat
+}
+
+type Subscription {
+  catCreated: Cat
+}
+
+"""
+Type declarations for Domain models
+"""
+type Owner {
+  id: Int!
+  name: String!
+  age: Int
+  cats: [Cat!]
+}
+
+type Cat {
+  id: Int
+  name: String
+  age: Int
+  owner: Owner
+}
+"""
+Test comment
+"""
+input CreateCatInput {
+  name: String
+  age: Int
+}
